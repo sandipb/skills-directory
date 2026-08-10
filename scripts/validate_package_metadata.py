@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate shared package identity and manual-invocation invariants."""
+"""Validate shared package identity and invocation metadata."""
 
 from __future__ import annotations
 
@@ -44,13 +44,14 @@ if claude_market["plugins"][0]["source"] != "./plugins/claude/sandipb-agents":
 canonical_edit = frontmatter(REPO / "skills/edit-technical-docs/SKILL.md")
 codex_edit = frontmatter(CODEX_ROOT / "skills/edit-technical-docs/SKILL.md")
 claude_edit = frontmatter(CLAUDE_ROOT / "skills/edit-technical-docs/SKILL.md")
-if "disable-model-invocation" in canonical_edit or "disable-model-invocation" in codex_edit:
-    raise SystemExit("Claude invocation metadata leaked into canonical or Codex skill")
-if claude_edit.get("disable-model-invocation") is not True:
-    raise SystemExit("Claude technical-editing skill must be manual-only")
+if any(
+    "disable-model-invocation" in metadata
+    for metadata in (canonical_edit, codex_edit, claude_edit)
+):
+    raise SystemExit("Technical-editing skill must allow Claude model invocation")
 
 openai = yaml.safe_load(
     (CODEX_ROOT / "skills/edit-technical-docs/agents/openai.yaml").read_text()
 )
-if openai.get("policy", {}).get("allow_implicit_invocation") is not False:
-    raise SystemExit("Codex technical-editing skill must be manual-only")
+if "allow_implicit_invocation" in openai.get("policy", {}):
+    raise SystemExit("Technical-editing skill must use Codex's default invocation policy")

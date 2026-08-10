@@ -32,9 +32,8 @@ Every skill requires:
 Skill versions live in `CHANGELOG.md`, not portable `SKILL.md` frontmatter. When changing an existing skill, update its
 changelog version. Preserve its trigger semantics and tool constraints unless the request changes them.
 
-`edit-technical-docs` is manual-only. Keep its canonical `SKILL.md` portable. Codex enforces the policy through
-`agents/openai.yaml`; packaging adds Claude's `disable-model-invocation` field to its generated copy. The optional
-`avoid-ai-writing` skill must never block the core workflow.
+Keep `edit-technical-docs` available for both model and explicit invocation. Keep its canonical `SKILL.md` portable.
+The optional `avoid-ai-writing` skill must never block the core workflow.
 
 ## Plugins
 

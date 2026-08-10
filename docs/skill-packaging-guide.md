@@ -95,7 +95,7 @@ does and distinct trigger branches in the description; put execution instruction
 product invocation syntax (`$skill`, `@skill`, `/plugin:skill`) in installation documentation, not
 canonical discovery metadata.
 
-## Manual-only invocation conflict
+## Invocation controls
 
 Manual-only invocation has no single portable metadata switch:
 
@@ -105,17 +105,23 @@ Manual-only invocation has no single portable metadata switch:
   from model context until the user invokes the skill
   ([Claude skills reference](https://code.claude.com/docs/en/skills)).
 
-Default to model invocation when acceptable. The technical-editing skill is manual-only. Codex
-uses `agents/openai.yaml`; the packaging script adds Claude's host-specific field to the generated
-Claude copy:
+Default to model invocation when acceptable. The technical-editing skill uses that default, so its
+Codex metadata omits `policy.allow_implicit_invocation` and its Claude frontmatter omits
+`disable-model-invocation`. For a future manual-only skill, add its name to
+`CLAUDE_MANUAL_ONLY_SKILLS` in `scripts/sync_plugin_skills.py` and set its Codex policy in
+`agents/openai.yaml`. The packaging script then adds Claude's host-specific field only to the
+generated Claude copy while keeping the canonical skill portable.
+
+With no skills currently configured as manual-only, the packaging script copies the same portable
+skill to both hosts:
 
 ```text
 skills/edit-technical-docs/SKILL.md
 plugins/claude/sandipb-agents/skills/edit-technical-docs/SKILL.md
 ```
 
-The generated Claude file differs only by `disable-model-invocation: true` in its frontmatter. The
-sync check rejects any other difference, so substantive instructions remain canonical.
+The sync check rejects differences other than configured host-specific metadata, so substantive
+instructions remain canonical.
 
 ## Writing and maintaining strong skills
 
