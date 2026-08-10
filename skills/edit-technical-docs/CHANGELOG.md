@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0 - 2026-08-09
+
+- Enabled model invocation in Codex, ChatGPT Work, and Claude Code.
+- Kept the skill available for explicit invocation through each host's skills interface.
+
 ## 1.1.0 - 2026-08-04
 
 - Added preservation-safe sentence and paragraph review thresholds.

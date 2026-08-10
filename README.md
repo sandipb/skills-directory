@@ -7,7 +7,7 @@ Reusable skills packaged as one plugin for Codex, ChatGPT Work, and Claude Code.
 - `grafana-loki`: Query and analyze Grafana Loki logs with LogQL.
 - `fireworks-billing`: Export and summarize Fireworks AI billing usage metrics.
 - `edit-technical-docs`: Edit, rewrite, restructure, or review existing technical documentation while preserving its
-  technical meaning. This skill is manual-only; `avoid-ai-writing` is an optional final pass.
+  technical meaning. `avoid-ai-writing` is an optional final pass.
 
 ## Install in Codex or ChatGPT Work
 
@@ -26,8 +26,9 @@ claude plugin marketplace add sandipb/agent-toolkit
 claude plugin install sandipb-agents@sandipb-agents
 ```
 
-Invoke technical editing explicitly with `$edit-technical-docs` in Codex, `@edit-technical-docs` in ChatGPT Work, or
-`/sandipb-agents:edit-technical-docs` in Claude Code. The other skills remain available for model invocation.
+The model can select technical editing when a request matches the skill. You can also invoke it explicitly with
+`$edit-technical-docs` in Codex, `@edit-technical-docs` in ChatGPT Work, or
+`/sandipb-agents:edit-technical-docs` in Claude Code.
 
 ## Repository layout
 

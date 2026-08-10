@@ -18,7 +18,7 @@ TARGETS = {
     "codex": REPO / "plugins/codex/sandipb-agents/skills",
     "claude": REPO / "plugins/claude/sandipb-agents/skills",
 }
-MANUAL_SKILL = "edit-technical-docs"
+CLAUDE_MANUAL_ONLY_SKILLS: frozenset[str] = frozenset()
 CLAUDE_MANUAL_FIELD = "disable-model-invocation: true"
 FORBIDDEN_NAMES = {"__pycache__", ".DS_Store", ".pytest_cache", ".ruff_cache"}
 
@@ -62,7 +62,15 @@ def generate(root: Path, host: str, skills: list[Path]) -> None:
         destination = root / source.name
         shutil.copytree(source, destination, copy_function=shutil.copy2)
     if host == "claude":
-        add_claude_manual_field(root / MANUAL_SKILL / "SKILL.md")
+        available_skills = {skill.name for skill in skills}
+        unknown_skills = CLAUDE_MANUAL_ONLY_SKILLS - available_skills
+        if unknown_skills:
+            fail(
+                "unknown Claude manual-only skills: "
+                + ", ".join(sorted(unknown_skills))
+            )
+        for skill in sorted(CLAUDE_MANUAL_ONLY_SKILLS):
+            add_claude_manual_field(root / skill / "SKILL.md")
 
 
 def compare(expected: Path, actual: Path) -> list[str]:

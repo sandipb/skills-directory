@@ -2,9 +2,8 @@
 name: edit-technical-docs
 description: >-
   Edit, rewrite, restructure, or review existing software and infrastructure documentation while preserving its
-  technical meaning. Use only when the user explicitly invokes this skill for READMEs, design documents, runbooks,
-  procedures, warnings, API documentation, code comments, or other existing technical prose.
-disable-model-invocation: true
+  technical meaning. Use for READMEs, design documents, runbooks, procedures, warnings, API documentation, code
+  comments, or other existing technical prose.
 ---
 
 # Edit technical documentation
