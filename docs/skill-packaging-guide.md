@@ -158,6 +158,15 @@ repository retains a local skill because it adds an executable HTTP helper with 
 `logcli` references, and mocked behavior tests. Recheck this decision when Grafana adds equivalent operational tooling;
 remove local overlap when it no longer provides a distinct, tested workflow.
 
+## Release versioning
+
+Each skill has its own version in its canonical `CHANGELOG.md`. The Codex and Claude plugin manifests share a separate
+bundle version. Git tags and GitHub releases use that bundle version.
+
+Every releasable skill change must update the skill changelog and both plugin manifests in the same pull request. After
+merge, tag that commit with the manifest version and create the matching GitHub release. Do not create a separate
+release-preparation pull request.
+
 ## Change and validation workflow
 
 For every skill or packaging change:
@@ -167,7 +176,7 @@ For every skill or packaging change:
 3. Review `agents/openai.yaml` so its UI text and invocation policy still match
    `SKILL.md`
    ([OpenAI skill creator](https://github.com/openai/skills/blob/main/skills/.system/skill-creator/SKILL.md)).
-4. Update both host manifests and marketplaces when identity, paths, inventory, or version changes.
+4. For a releasable skill change, update its changelog and bump both host manifests. Update marketplaces when pinned.
 5. Update repository instructions and installation documentation in the same change.
 6. Run `task validate`; CI runs the same entry point and rejects stale generated copies.
 7. Validate the Codex plugin with OpenAI's `validate_plugin.py`; for an already installed local

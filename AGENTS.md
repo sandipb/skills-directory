@@ -40,6 +40,10 @@ The optional `avoid-ai-writing` skill must never block the core workflow.
 Keep both host manifest names, versions, and shared identity fields synchronized. Marketplace versions are optional;
 when pinned, keep them synchronized with the corresponding manifest. Include only components that exist.
 
+Skill versions are independent from the plugin version. For every releasable skill change, update the skill changelog
+and bump both plugin manifests in the same pull request; do not defer the plugin bump to a release-preparation pull
+request. Git tags and GitHub releases use the plugin version and must match both manifests.
+
 Use the local `plugin-creator` workflow for scaffolding and validation. Do not hand-edit installed plugin caches.
 
 ## Documentation
@@ -71,4 +75,5 @@ Report skipped checks and why. Do not claim prose checks validate technical beha
 ## Git workflow
 
 Work on a topic branch unless the user explicitly approves another approach. The repository expects one commit per pull
-request. Present the proposed commit message and pull-request text before any publishing action.
+request. Use Conventional Commits for all commit subjects. Present the proposed commit message and pull-request text
+before any publishing action.
