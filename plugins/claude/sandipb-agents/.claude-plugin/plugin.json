@@ -1,6 +1,6 @@
 {
   "name": "sandipb-agents",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Reusable technical-writing, observability, and service-operations skills.",
   "author": {"name": "sandipb"},
   "license": "Apache-2.0"
