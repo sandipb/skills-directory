@@ -1,4 +1,0 @@
-interface:
-  display_name: "Edit Technical Docs"
-  short_description: "Edit technical prose without changing meaning"
-  default_prompt: "Use $edit-technical-docs to edit this technical document without changing its technical meaning."

@@ -32,7 +32,8 @@ Every skill requires:
 Skill versions live in `CHANGELOG.md`, not portable `SKILL.md` frontmatter. When changing an existing skill, update its
 changelog version. Preserve its trigger semantics and tool constraints unless the request changes them.
 
-Keep `edit-technical-docs` available for both model and explicit invocation. Keep its canonical `SKILL.md` portable.
+Keep `technical-writing`, `technical-docs`, and `tech-blog` available for both model and explicit invocation. Keep their
+canonical `SKILL.md` files portable.
 The optional `avoid-ai-writing` skill must never block the core workflow.
 
 ## Plugins

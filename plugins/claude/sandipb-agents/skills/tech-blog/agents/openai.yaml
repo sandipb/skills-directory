@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tech Blog"
+  short_description: "Compose and edit technical articles"
+  default_prompt: "Use $tech-blog to compose, edit, or review this technical article from the supplied authoritative context."
