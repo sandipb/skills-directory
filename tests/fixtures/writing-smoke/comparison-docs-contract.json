@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "comparison-docs-contract",
+  "prompt": "Edit this fictional operational note as technical documentation. Return a section named `Revised content`. Preserve every distinct fact and these literals exactly: `ValeStore`, `/srv/vale`, `vale verify`, MUST, SHOULD, and 6 minutes.\n\nValeStore uses /srv/vale. Operators MUST run vale verify before migration. The verification took 6 minutes in test V-2. Operators SHOULD retain the test log. The duration may differ in another test.",
+  "expected_skills": ["technical-docs", "technical-writing"],
+  "assertions": {
+    "contains": ["ValeStore", "/srv/vale", "vale verify", "MUST", "SHOULD", "6 minutes", "V-2", "may differ"],
+    "forbids": ["guarantees", "always"],
+    "sections": ["Revised content"]
+  },
+  "manual_review": ["Compare with comparison-blog-contract and confirm the documentation preserves every operational fact."]
+}

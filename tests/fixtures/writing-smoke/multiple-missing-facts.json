@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "multiple-missing-facts",
+  "prompt": "Compose a partial fictional deployment procedure from these notes. Return sections named `Draft` and `Questions`. Ask about the missing deployment command, rollback command, and success threshold. Do not invent any of them. Preserve `KiteRelay` and `/status` exactly.\n\nService: KiteRelay. Health endpoint: /status. Deployment command: not supplied. Rollback command: not supplied. Success threshold: not supplied.",
+  "expected_skills": ["technical-docs", "technical-writing"],
+  "assertions": {
+    "contains": ["KiteRelay", "/status", "deployment command", "rollback command", "success threshold"],
+    "forbids": ["kubectl", "helm", "docker", "200 OK", "99%"],
+    "sections": ["Draft", "Questions"]
+  },
+  "manual_review": ["Confirm all material gaps are questions and the partial draft remains useful."]
+}

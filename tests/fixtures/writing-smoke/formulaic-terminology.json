@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "formulaic-terminology",
+  "prompt": "$technical-writing Remove formulaic framing from this fictional note. Return only the revised note. Keep the established term `PulseIndex` each time the concept appears; do not rotate synonyms. Preserve `PI-4` exactly.\n\nIn today's ever-evolving landscape, PulseIndex is worth exploring. Furthermore, PulseIndex stores PI-4. In conclusion, PulseIndex stores PI-4.",
+  "expected_skills": ["technical-writing"],
+  "assertions": {
+    "contains": ["PulseIndex", "PI-4"],
+    "forbids": ["ever-evolving", "worth exploring", "Furthermore", "In conclusion", "metric", "indicator"],
+    "sections": []
+  },
+  "manual_review": ["Confirm formulaic prose was reduced without synonym-cycling PulseIndex."]
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "review-only",
+  "prompt": "Review, but do not rewrite, this fictional procedure. Return a section named `Findings`. Do not include a section named `Revised content`.\n\nRun `nova purge --all`. It removes the fictional cache. Then check it.",
+  "expected_skills": ["technical-docs", "technical-writing"],
+  "assertions": {
+    "contains": [],
+    "forbids": ["Revised content", "## Revised content"],
+    "sections": ["Findings"]
+  },
+  "manual_review": ["Confirm the response reports concerns without rewriting the procedure."]
+}

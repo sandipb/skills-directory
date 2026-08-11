@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "local-convention-precedence",
+  "prompt": "Compose a fictional component note from the supplied facts. The local documentation convention requires exactly these section labels: `Purpose`, `Command`, and `Known limits`. Use those labels rather than generic alternatives. Preserve `EchoGate`, `echoctl inspect EG-3`, and 14 MiB exactly. Do not add facts.\n\nFacts:\n- EchoGate inspection command: echoctl inspect EG-3.\n- The inspection reported 14 MiB.\n- No interpretation of the measurement is supplied.",
+  "expected_skills": ["technical-docs", "technical-writing"],
+  "assertions": {
+    "contains": ["EchoGate", "echoctl inspect EG-3", "14 MiB"],
+    "forbids": ["Overview", "Conclusion", "healthy"],
+    "sections": ["Purpose", "Command", "Known limits"]
+  },
+  "manual_review": ["Confirm the supplied local convention outranks generic document structure."]
+}

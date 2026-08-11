@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "omit-empty-sections",
+  "prompt": "Edit this complete fictional technical note. Apply the safe grammar correction. No author decision is needed. Return only the revised note and omit empty findings, suggestions, and questions sections. Preserve `CinderLoop` and `4040`.\n\nCinderLoop listen on port 4040.",
+  "expected_skills": ["technical-docs", "technical-writing"],
+  "assertions": {
+    "contains": ["CinderLoop", "4040"],
+    "forbids": ["Findings", "Suggestions", "Questions"],
+    "sections": []
+  },
+  "manual_review": ["Confirm the safe grammar correction was applied inline."]
+}

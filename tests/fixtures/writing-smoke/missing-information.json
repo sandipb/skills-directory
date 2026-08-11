@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "missing-information",
+  "prompt": "Compose a partial fictional deployment procedure only from these notes. Return sections named `Draft` and `Questions`. Do not invent the missing deployment command.\n\nService: `orbit-api`. Required health endpoint: `/ready`. Deployment command: not supplied.",
+  "expected_skills": ["technical-docs", "technical-writing"],
+  "assertions": {
+    "contains": ["orbit-api", "/ready"],
+    "forbids": ["kubectl", "docker", "helm"],
+    "sections": ["Draft", "Questions"]
+  },
+  "manual_review": ["Confirm missing information is surfaced as an author-judgment question."]
+}
