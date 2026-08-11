@@ -1,6 +1,6 @@
 {
   "name": "sandipb-agents",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Reusable technical-writing, observability, and service-operations skills.",
   "author": {"name": "sandipb"},
   "license": "Apache-2.0",
@@ -8,10 +8,10 @@
   "interface": {
     "displayName": "sandipb agents",
     "shortDescription": "Reusable skills and workflows for AI agents.",
-    "longDescription": "Install technical-editing, Grafana Loki, and Fireworks AI billing workflows.",
+    "longDescription": "Install technical-writing, Grafana Loki, and Fireworks AI billing workflows.",
     "developerName": "sandipb",
     "category": "Productivity",
     "capabilities": ["Write", "Other"],
-    "defaultPrompt": "Use $edit-technical-docs to edit this technical document without changing its meaning."
+    "defaultPrompt": "Use $technical-docs to compose, edit, or review this technical document from authoritative context."
   }
 }

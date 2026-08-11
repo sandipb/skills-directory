@@ -41,17 +41,23 @@ if claude_market["plugins"][0]["name"] != claude["name"]:
 if claude_market["plugins"][0]["source"] != "./plugins/claude/sandipb-agents":
     raise SystemExit("Claude marketplace source path is incorrect")
 
-canonical_edit = frontmatter(REPO / "skills/edit-technical-docs/SKILL.md")
-codex_edit = frontmatter(CODEX_ROOT / "skills/edit-technical-docs/SKILL.md")
-claude_edit = frontmatter(CLAUDE_ROOT / "skills/edit-technical-docs/SKILL.md")
-if any(
-    "disable-model-invocation" in metadata
-    for metadata in (canonical_edit, codex_edit, claude_edit)
-):
-    raise SystemExit("Technical-editing skill must allow Claude model invocation")
+writing_skills = ("technical-writing", "technical-docs", "tech-blog")
+for skill in writing_skills:
+    skill_roots = (
+        REPO / "skills" / skill,
+        CODEX_ROOT / "skills" / skill,
+        CLAUDE_ROOT / "skills" / skill,
+    )
+    metadata = [frontmatter(root / "SKILL.md") for root in skill_roots]
+    if any("disable-model-invocation" in item for item in metadata):
+        raise SystemExit(f"{skill} must allow model invocation")
+    if any(not (root / "README.md").is_file() for root in skill_roots):
+        raise SystemExit(f"{skill} must include user-facing README.md")
 
-openai = yaml.safe_load(
-    (CODEX_ROOT / "skills/edit-technical-docs/agents/openai.yaml").read_text()
-)
-if "allow_implicit_invocation" in openai.get("policy", {}):
-    raise SystemExit("Technical-editing skill must use Codex's default invocation policy")
+    openai = yaml.safe_load((skill_roots[1] / "agents/openai.yaml").read_text())
+    if "allow_implicit_invocation" in openai.get("policy", {}):
+        raise SystemExit(f"{skill} must use Codex's default invocation policy")
+
+for root in (REPO / "skills", CODEX_ROOT / "skills", CLAUDE_ROOT / "skills"):
+    if (root / "edit-technical-docs").exists():
+        raise SystemExit("edit-technical-docs must be removed")

@@ -6,8 +6,9 @@ Reusable skills packaged as one plugin for Codex, ChatGPT Work, and Claude Code.
 
 - `grafana-loki`: Query and analyze Grafana Loki logs with LogQL.
 - `fireworks-billing`: Export and summarize Fireworks AI billing usage metrics.
-- `edit-technical-docs`: Edit, rewrite, restructure, or review existing technical documentation while preserving its
-  technical meaning. `avoid-ai-writing` is an optional final pass.
+- [`technical-writing`](skills/technical-writing/README.md): Shared discipline for precise, supportable technical prose.
+- [`technical-docs`](skills/technical-docs/README.md): Compose, edit, or review work-oriented technical documentation.
+- [`tech-blog`](skills/tech-blog/README.md): Compose, edit, or review reader-oriented technical articles.
 
 ## Install in Codex or ChatGPT Work
 
@@ -26,9 +27,8 @@ claude plugin marketplace add sandipb/agent-toolkit
 claude plugin install sandipb-agents@sandipb-agents
 ```
 
-The model can select technical editing when a request matches the skill. You can also invoke it explicitly with
-`$edit-technical-docs` in Codex, `@edit-technical-docs` in ChatGPT Work, or
-`/sandipb-agents:edit-technical-docs` in Claude Code.
+The model can select a writing skill from a natural-language request. You can also invoke a skill explicitly, such as
+`$technical-docs` in Codex, `@technical-docs` in ChatGPT Work, or `/sandipb-agents:technical-docs` in Claude Code.
 
 ## Repository layout
 
@@ -64,6 +64,8 @@ Follow `AGENTS.md`. In particular:
 
 Run `task validate` before requesting review. Changes merge only through pull requests after the required validation
 check passes. See [Owner setup](docs/owner-setup.md) for the GitHub UI configuration.
+
+Use [Testing agent skills](docs/TESTING.md) for manual invocation and behavior smoke tests.
 
 For local installation testing, replace `sandipb/agent-toolkit` in the marketplace commands with the absolute path to
 your checkout.

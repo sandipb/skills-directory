@@ -1,0 +1,4 @@
+interface:
+  display_name: "Technical Writing"
+  short_description: "Write precise, supportable technical prose"
+  default_prompt: "Use $technical-writing to improve this technical prose without inventing or changing technical claims."

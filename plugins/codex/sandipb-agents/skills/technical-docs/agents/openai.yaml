@@ -1,0 +1,4 @@
+interface:
+  display_name: "Technical Docs"
+  short_description: "Compose and edit technical documentation"
+  default_prompt: "Use $technical-docs to compose, edit, or review this documentation from the supplied authoritative context."
