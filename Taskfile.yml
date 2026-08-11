@@ -31,3 +31,15 @@ tasks:
       - claude plugin validate . --strict
       - claude plugin validate plugins/claude/sandipb-agents --strict
       - uv run pre-commit run --all-files
+
+  smoke:writing:
+    desc: Run opt-in model-backed writing-skill smoke fixtures
+    cmds:
+      - python3 scripts/writing_smoke.py {{.CLI_ARGS}}
+
+  test:writing-smoke:
+    desc: Run opt-in deterministic writing-smoke harness tests
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    cmds:
+      - python3 -m unittest scripts.tests.test_writing_smoke -v

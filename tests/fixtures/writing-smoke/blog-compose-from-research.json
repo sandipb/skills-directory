@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "blog-compose-from-research",
+  "prompt": "Write a short reader-oriented technical article using only these fictional research notes. Return a section named `Article`. Preserve `AuroraMap`, `POST /v2/paths`, 320 ms, and `trial-18` exactly. Do not invent causes, comparisons, architecture, or additional measurements.\n\nResearch notes:\n- AuroraMap exposes POST /v2/paths.\n- trial-18 observed a response time of 320 ms.\n- The cause of that response time was not investigated.",
+  "expected_skills": ["tech-blog", "technical-writing"],
+  "assertions": {
+    "contains": ["AuroraMap", "POST /v2/paths", "320 ms", "trial-18", "not investigated"],
+    "forbids": ["database", "network latency", "faster than", "microservice"],
+    "sections": ["Article"]
+  },
+  "manual_review": ["Confirm the article is readable without adding claims beyond the supplied research."]
+}

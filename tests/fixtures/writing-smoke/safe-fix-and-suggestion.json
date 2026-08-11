@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "safe-fix-and-suggestion",
+  "prompt": "Edit this fictional README sentence. Apply safe grammar fixes inline, but do not silently add the requested analogy. Return sections named `Revised content` and `Suggestions`. Preserve `FluxPin` and `9001`.\n\nFluxPin listen on port 9001. An analogy might help new readers, but none is supplied.",
+  "expected_skills": ["technical-docs", "technical-writing"],
+  "assertions": {
+    "contains": ["FluxPin", "9001"],
+    "forbids": ["traffic light", "postal service"],
+    "sections": ["Revised content", "Suggestions"]
+  },
+  "manual_review": ["Confirm the grammar fix is inline and the analogy remains an author decision."]
+}

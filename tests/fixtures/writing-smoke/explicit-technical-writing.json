@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "explicit-technical-writing",
+  "prompt": "$technical-writing Tighten this fictional technical note. Return only the revised note. Preserve `quartz.sync`, `/opt/quartz/cache`, 45 ms, and MAY exactly.\n\nThe quartz.sync job it MAY perhaps be able to clear the /opt/quartz/cache directory in approximately 45 ms.",
+  "expected_skills": ["technical-writing"],
+  "assertions": {
+    "contains": ["quartz.sync", "/opt/quartz/cache", "45 ms", "MAY"],
+    "forbids": ["customer", "production"],
+    "sections": []
+  },
+  "manual_review": ["Confirm that the awkward phrasing was tightened without changing requirement strength."]
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "blog-review-only",
+  "prompt": "Review this fictional technical blog excerpt for pacing and clarity without rewriting it. Return a section named `Findings`. Do not return revised prose or a section named `Revised article`. Preserve quoted references to `MistQueue` and `MQ-9` in the findings.\n\nMistQueue stores MQ-9 records. In today's rapidly evolving landscape, this is important. MistQueue stores MQ-9 records. In conclusion, readers should care.",
+  "expected_skills": ["tech-blog", "technical-writing"],
+  "assertions": {
+    "contains": ["MistQueue", "MQ-9"],
+    "forbids": ["Revised article", "## Revised article"],
+    "sections": ["Findings"]
+  },
+  "manual_review": ["Confirm findings identify pacing or formulaic framing without rewriting the excerpt."]
+}
