@@ -26,6 +26,14 @@ HARNESS_FAILURE = 2
 INTERRUPTED = 130
 SANDBOX_PREFIX = "writing-smoke-"
 ANSI_PATTERN = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+EDITOR_ACTION_PATTERN = re.compile(
+    r"\b(?:compose|create|draft|edit|editor|polish|review|reviewer|revise|rewrite|tighten|write|writer|writing)\b",
+    re.IGNORECASE,
+)
+SPECIALIST_REVIEW_PATTERN = re.compile(
+    r"avoid-ai-writing|\bai(?:[- ]writing| patterns?)\b|critique,? not rewrite",
+    re.IGNORECASE,
+)
 
 
 class HarnessError(RuntimeError):
@@ -39,12 +47,20 @@ class ResultKind(enum.Enum):
     INTERRUPTED = "interrupted"
 
 
+class DelegationStatus(enum.Enum):
+    NOT_REQUIRED = "not-required"
+    VERIFIED = "verified"
+    FAILED = "failed"
+    INCONCLUSIVE = "inconclusive"
+
+
 @dataclasses.dataclass(frozen=True)
 class Fixture:
     schema_version: int
     identifier: str
     prompt: str
     expected_skills: tuple[str, ...]
+    requires_isolated_editor: bool
     assertions: dict[str, list[str]]
     manual_review: tuple[str, ...]
     source: Path
@@ -57,6 +73,13 @@ class ParsedRun:
     usage: dict
     completed: bool
     error: str | None
+
+
+@dataclasses.dataclass(frozen=True)
+class DelegationObservation:
+    status: DelegationStatus
+    started_children: tuple[str, ...]
+    completed_children: tuple[str, ...]
 
 
 @dataclasses.dataclass
@@ -81,12 +104,20 @@ def _string_list(value: object, field: str, source: Path, *, allow_empty: bool =
 def validate_fixture(data: object, source: Path) -> Fixture:
     if not isinstance(data, dict):
         raise HarnessError(f"{source}: fixture must be a JSON object")
-    allowed = {"schema_version", "id", "prompt", "expected_skills", "assertions", "manual_review"}
+    allowed = {
+        "schema_version",
+        "id",
+        "prompt",
+        "expected_skills",
+        "requires_isolated_editor",
+        "assertions",
+        "manual_review",
+    }
     unknown = set(data) - allowed
     if unknown:
         raise HarnessError(f"{source}: unknown fields: {', '.join(sorted(unknown))}")
-    if data.get("schema_version") != 1:
-        raise HarnessError(f"{source}: schema_version must be 1")
+    if data.get("schema_version") != 2:
+        raise HarnessError(f"{source}: schema_version must be 2")
     identifier = data.get("id")
     if not isinstance(identifier, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", identifier):
         raise HarnessError(f"{source}: id must use lowercase kebab-case")
@@ -94,6 +125,13 @@ def validate_fixture(data: object, source: Path) -> Fixture:
     if not isinstance(prompt, str) or not prompt.strip():
         raise HarnessError(f"{source}: prompt must be a non-empty string")
     expected_skills = _string_list(data.get("expected_skills"), "expected_skills", source, allow_empty=False)
+    if "requires_isolated_editor" not in data:
+        raise HarnessError(f"{source}: requires_isolated_editor is required")
+    requires_isolated_editor = data.get("requires_isolated_editor")
+    if not isinstance(requires_isolated_editor, bool):
+        raise HarnessError(f"{source}: requires_isolated_editor must be a boolean")
+    if {"technical-docs", "tech-blog"} & set(expected_skills) and not requires_isolated_editor:
+        raise HarnessError(f"{source}: umbrella writing skills require requires_isolated_editor: true")
     assertions = data.get("assertions")
     if not isinstance(assertions, dict) or set(assertions) - {"contains", "forbids", "sections"}:
         raise HarnessError(f"{source}: assertions supports only contains, forbids, and sections")
@@ -103,8 +141,19 @@ def validate_fixture(data: object, source: Path) -> Fixture:
     }
     if not any(normalized_assertions.values()):
         raise HarnessError(f"{source}: at least one deterministic assertion is required")
+    if requires_isolated_editor and not normalized_assertions["contains"]:
+        raise HarnessError(f"{source}: isolated editor fixtures require assertions.contains evidence")
     manual_review = _string_list(data.get("manual_review", []), "manual_review", source)
-    return Fixture(1, identifier, prompt, expected_skills, normalized_assertions, manual_review, source)
+    return Fixture(
+        2,
+        identifier,
+        prompt,
+        expected_skills,
+        requires_isolated_editor,
+        normalized_assertions,
+        manual_review,
+        source,
+    )
 
 
 def load_fixtures(directory: Path) -> list[Fixture]:
@@ -166,6 +215,71 @@ def parse_event_stream(stream: str) -> ParsedRun:
     return ParsedRun(events, final_response, usage, completed, error)
 
 
+def _normalized_event_name(value: object) -> str:
+    return re.sub(r"[^a-z]", "", value.lower()) if isinstance(value, str) else ""
+
+
+def _is_editor_prompt(value: object, evidence_literals: tuple[str, ...]) -> bool:
+    if not isinstance(value, str) or SPECIALIST_REVIEW_PATTERN.search(value):
+        return False
+    return bool(EDITOR_ACTION_PATTERN.search(value)) and any(literal in value for literal in evidence_literals)
+
+
+def observe_isolated_editor(events: list[dict], evidence_literals: tuple[str, ...]) -> DelegationObservation:
+    collaboration_seen = False
+    completed: set[str] = set()
+    observed_states: set[str] = set()
+    spawn_calls: dict[str, dict[str, object]] = {}
+
+    for index, event in enumerate(events):
+        item = event.get("item")
+        if not isinstance(item, dict) or _normalized_event_name(item.get("type")) != "collabagenttoolcall":
+            continue
+        collaboration_seen = True
+        receivers = item.get("receiverThreadIds", item.get("receiver_thread_ids", []))
+        receiver_ids = {value for value in receivers if isinstance(value, str)} if isinstance(receivers, list) else set()
+        states = item.get("agentsStates", item.get("agents_states", {}))
+        state_items = states.items() if isinstance(states, dict) else ()
+        state_ids = {child for child, _ in state_items if isinstance(child, str)}
+        if _normalized_event_name(item.get("tool")) == "spawnagent":
+            call_id = item.get("id") if isinstance(item.get("id"), str) else f"event-{index}"
+            call = spawn_calls.setdefault(call_id, {"prompt_observed": False, "is_editor": False, "children": set()})
+            if isinstance(item.get("prompt"), str):
+                call["prompt_observed"] = True
+            call["is_editor"] = bool(call["is_editor"]) or _is_editor_prompt(
+                item.get("prompt"), evidence_literals
+            )
+            children = call["children"]
+            if isinstance(children, set):
+                children.update(receiver_ids or state_ids)
+
+        if isinstance(states, dict):
+            for child, state in states.items():
+                status = state.get("status") if isinstance(state, dict) else state
+                if isinstance(child, str) and isinstance(status, str):
+                    observed_states.add(child)
+                    if _normalized_event_name(status) == "completed":
+                        completed.add(child)
+
+    started = {
+        child
+        for call in spawn_calls.values()
+        if call["is_editor"]
+        for child in call["children"]
+        if isinstance(child, str)
+    }
+    correlated = started & completed
+    if correlated:
+        status = DelegationStatus.VERIFIED
+    elif any(call["is_editor"] for call in spawn_calls.values()):
+        status = DelegationStatus.FAILED if started & observed_states else DelegationStatus.INCONCLUSIVE
+    elif spawn_calls and all(call["prompt_observed"] for call in spawn_calls.values()):
+        status = DelegationStatus.FAILED
+    else:
+        status = DelegationStatus.INCONCLUSIVE
+    return DelegationObservation(status, tuple(sorted(started)), tuple(sorted(correlated)))
+
+
 def evaluate_assertions(response: str, assertions: dict[str, list[str]]) -> list[str]:
     failures = [f"missing required literal: {value!r}" for value in assertions.get("contains", []) if value not in response]
     failures.extend(f"found forbidden literal: {value!r}" for value in assertions.get("forbids", []) if value in response)
@@ -174,9 +288,18 @@ def evaluate_assertions(response: str, assertions: dict[str, list[str]]) -> list
     return failures
 
 
-def classify_result(parsed: ParsedRun, assertion_failures: list[str]) -> ResultKind:
+def classify_result(
+    parsed: ParsedRun,
+    assertion_failures: list[str],
+    delegation: DelegationObservation | None = None,
+) -> ResultKind:
     if not parsed.completed:
         return ResultKind.HARNESS_FAILURE
+    if delegation is not None:
+        if delegation.status is DelegationStatus.INCONCLUSIVE:
+            return ResultKind.HARNESS_FAILURE
+        if delegation.status is DelegationStatus.FAILED:
+            return ResultKind.FIXTURE_FAILURE
     return ResultKind.FIXTURE_FAILURE if assertion_failures else ResultKind.SUCCESS
 
 
@@ -263,13 +386,26 @@ def command_for_fixture(
     return command
 
 
-def write_result(path: Path, fixture: Fixture, parsed: ParsedRun, failures: list[str], kind: ResultKind, model: str | None) -> None:
+def write_result(
+    path: Path,
+    fixture: Fixture,
+    parsed: ParsedRun,
+    failures: list[str],
+    kind: ResultKind,
+    model: str | None,
+    delegation: DelegationObservation,
+    delegation_failure: str | None,
+) -> None:
     path.write_text(json.dumps({
         "fixture": fixture.identifier,
         "result": kind.value,
         "model": model or "configured-default",
         "expected_skills": list(fixture.expected_skills),
         "routing": "unverified",
+        "isolated_editor": delegation.status.value,
+        "started_children": list(delegation.started_children),
+        "completed_children": list(delegation.completed_children),
+        "delegation_failure": delegation_failure,
         "usage": parsed.usage,
         "assertion_failures": failures,
         "manual_review": list(fixture.manual_review),
@@ -306,7 +442,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     overall = ResultKind.SUCCESS
     try:
         for index, fixture in enumerate(fixtures):
-            print(f"RUN {fixture.identifier} (routing: unverified; expected: {', '.join(fixture.expected_skills)})")
+            requirement = "required" if fixture.requires_isolated_editor else "not required"
+            print(f"RUN {fixture.identifier} (isolated editor: {requirement}; expected: {', '.join(fixture.expected_skills)})")
             command = command_for_fixture(sandbox.name, workspace, fixture, args.model, attach=index > 0)
             returncode, raw = run_with_pty(command, repo_root)
             normalized = normalize_pty_output(raw)
@@ -315,15 +452,36 @@ def main(argv: Sequence[str] | None = None) -> int:
             if returncode and parsed.completed:
                 parsed = dataclasses.replace(parsed, completed=False, error=f"sbx exited with status {returncode}")
             failures = evaluate_assertions(parsed.final_response, fixture.assertions) if parsed.completed else []
-            kind = classify_result(parsed, failures)
-            write_result(run_root / f"{fixture.identifier}.result.json", fixture, parsed, failures, kind, args.model)
+            delegation = (
+                observe_isolated_editor(parsed.events, tuple(fixture.assertions.get("contains", [])))
+                if fixture.requires_isolated_editor
+                else DelegationObservation(DelegationStatus.NOT_REQUIRED, (), ())
+            )
+            delegation_failure = (
+                "isolated editor did not start and complete in observable child-agent events"
+                if delegation.status is DelegationStatus.FAILED
+                else None
+            )
+            kind = classify_result(parsed, failures, delegation if fixture.requires_isolated_editor else None)
+            write_result(
+                run_root / f"{fixture.identifier}.result.json",
+                fixture,
+                parsed,
+                failures,
+                kind,
+                args.model,
+                delegation,
+                delegation_failure,
+            )
             if kind is ResultKind.HARNESS_FAILURE:
                 overall = kind
-                print(f"ERROR {fixture.identifier}: {parsed.error}", file=sys.stderr)
+                error = parsed.error or "child-agent event observability unavailable; isolated delegation is inconclusive"
+                print(f"ERROR {fixture.identifier}: {error}", file=sys.stderr)
                 break
             if kind is ResultKind.FIXTURE_FAILURE:
                 overall = kind
-                print(f"FAIL {fixture.identifier}: {'; '.join(failures)}")
+                details = failures + ([delegation_failure] if delegation_failure else [])
+                print(f"FAIL {fixture.identifier}: {'; '.join(details)}")
             else:
                 print(f"PASS {fixture.identifier}")
     except KeyboardInterrupt:

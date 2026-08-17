@@ -17,6 +17,7 @@ tasks:
     env:
       PYTHONDONTWRITEBYTECODE: "1"
     cmds:
+      - python3 -m unittest scripts.tests.test_writing_smoke -v
       - python3 -m unittest discover -s skills/fireworks-billing/tests -v
       - shellcheck skills/grafana-loki/loki-query.sh
       - bash skills/grafana-loki/tests/test-loki-query.sh
@@ -38,7 +39,7 @@ tasks:
       - python3 scripts/writing_smoke.py {{.CLI_ARGS}}
 
   test:writing-smoke:
-    desc: Run opt-in deterministic writing-smoke harness tests
+    desc: Run deterministic writing-smoke harness tests
     env:
       PYTHONDONTWRITEBYTECODE: "1"
     cmds:

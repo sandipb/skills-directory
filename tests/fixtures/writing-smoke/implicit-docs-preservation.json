@@ -1,8 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "implicit-docs-preservation",
   "prompt": "Edit this fictional runbook excerpt. Return a section named `Revised content`. Preserve every distinct fact and these literals exactly: `emberctl drain node-7`, `/var/lib/ember`, 8 GiB, MUST, and because. Do not add operational facts.\n\nOperators MUST run emberctl drain node-7 before moving /var/lib/ember because the fictional node has only 8 GiB free. The move may fail. The drain can take longer on Tuesdays.",
   "expected_skills": ["technical-docs", "technical-writing"],
+  "requires_isolated_editor": true,
   "assertions": {
     "contains": ["emberctl drain node-7", "/var/lib/ember", "8 GiB", "MUST", "because", "may fail", "Tuesdays"],
     "forbids": ["data loss", "restart the service"],

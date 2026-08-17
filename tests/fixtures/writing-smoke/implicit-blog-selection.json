@@ -1,8 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "implicit-blog-selection",
   "prompt": "Edit this fictional reader-oriented technical article for flow. Reordering and removing repetition are allowed. Return a section named `Revised article`. Preserve `LumenCache`, `GET /v1/sparks`, and 12 requests/s exactly. Do not invent benchmarks or causes.\n\nLumenCache is a fictional cache. This article explains LumenCache. The client calls GET /v1/sparks. The test observed 12 requests/s. In conclusion, LumenCache is a fictional cache.",
   "expected_skills": ["tech-blog", "technical-writing"],
+  "requires_isolated_editor": true,
   "assertions": {
     "contains": ["LumenCache", "GET /v1/sparks", "12 requests/s"],
     "forbids": ["latency", "database", "because"],
