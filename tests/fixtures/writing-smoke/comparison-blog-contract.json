@@ -1,8 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "comparison-blog-contract",
-  "prompt": "Edit this same fictional source as a reader-oriented technical article. You may reorder information and remove semantic repetition, but preserve all supported technical claims. Return a section named `Revised article`. Preserve `ValeStore`, `/srv/vale`, `vale verify`, MUST, SHOULD, and 6 minutes exactly.\n\nValeStore uses /srv/vale. Operators MUST run vale verify before migration. The verification took 6 minutes in test V-2. Operators SHOULD retain the test log. The duration may differ in another test. In conclusion, ValeStore uses /srv/vale.",
+  "prompt": "$tech-blog Edit this fictional source as a reader-oriented technical article. You may reorder information and remove semantic repetition, but preserve all supported technical claims. Return a section named `Revised article`. Preserve `ValeStore`, `/srv/vale`, `vale verify`, MUST, SHOULD, and 6 minutes exactly.\n\nValeStore uses /srv/vale. Operators MUST run vale verify before migration. The verification took 6 minutes in test V-2. Operators SHOULD retain the test log. The duration may differ in another test. In conclusion, ValeStore uses /srv/vale.",
   "expected_skills": ["tech-blog", "technical-writing"],
+  "requires_isolated_editor": true,
   "assertions": {
     "contains": ["ValeStore", "/srv/vale", "vale verify", "MUST", "SHOULD", "6 minutes", "V-2", "may differ"],
     "forbids": ["In conclusion", "guarantees", "always"],

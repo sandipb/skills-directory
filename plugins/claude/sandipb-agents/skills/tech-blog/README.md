@@ -13,6 +13,9 @@ Examples:
 - `Write a technical article from these researched notes and flag unsupported gaps.`
 - `Review this post for pacing and formulaic AI-writing patterns without rewriting it.`
 
-For substantive drafts, a fresh editor subagent is preferred. An optional `avoid-ai-writing` reviewer critiques only
-the current draft. Hosts without subagents run the phases sequentially with weaker context isolation; missing specialist
-review does not block writing.
+Every compose, edit, or review must use an isolated fresh writer/editor subagent, including small drafts. The main agent
+selects sources, records decisions, maintains the authoritative draft, prepares the bounded source packet, coordinates
+the work, and renders the result. Each revision uses a new editor with no unrelated inherited context. If isolated
+delegation is unavailable, the skill stops before editorial work and explains how to enable subagents; Pi requires its
+official subagent extension. An optional `avoid-ai-writing` reviewer may critique the current draft, but its absence
+never blocks writing.

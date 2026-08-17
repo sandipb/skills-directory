@@ -8,9 +8,12 @@ major restructuring, changed emphasis, and ambiguity are returned as editorial s
 Accept or reject those items in the next reply. The main agent combines your decisions with the current draft and sends
 that bounded context to a fresh editor for the next revision.
 
-For substantive work, a fresh editor subagent receives a bounded source packet when the host supports subagents. A
-separate optional `avoid-ai-writing` reviewer critiques only the current draft. Without subagents, the same phases run
-sequentially with weaker context isolation. Missing specialist review never blocks the core workflow.
+Every compose, edit, or review must use an isolated fresh writer/editor subagent, including small artifacts. The main
+agent selects sources, records decisions, maintains the authoritative draft, prepares the bounded source packet,
+coordinates the work, and renders the result. Each revision uses a new editor with no unrelated inherited context. If
+isolated delegation is unavailable, the skill stops before editorial work and explains how to enable subagents; Pi
+requires its official subagent extension. An optional `avoid-ai-writing` reviewer may critique the current draft, but
+its absence never blocks the workflow.
 
 Examples:
 

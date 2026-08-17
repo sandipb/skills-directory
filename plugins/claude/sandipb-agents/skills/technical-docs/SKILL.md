@@ -28,21 +28,28 @@ Apply safe language corrections inline. Return additions, examples, removal of d
 restructuring, changed emphasis, and unresolved ambiguity as author-judgment suggestions. Use native comments or
 suggestions when practical; otherwise separate suggestions from revised prose. Omit empty suggestion sections.
 
-## Orchestrate substantive work
+## Orchestrate every task
 
-When subagents are available and the artifact is substantive, have the main thread send only the bounded source packet
-to a fresh writer/editor. Use a fresh editor for each revision. The main thread owns sources, the authoritative draft,
-user decisions, and objective invariant conflicts; the editor owns prose and editorial judgment.
+The main thread must delegate every compose, edit, or review to a fresh writer/editor subagent. It owns source selection,
+user and objective decisions, the authoritative draft, the bounded source packet, orchestration, and user-facing
+rendering. Send the subagent only the context required by the source and editorial contracts, with no unrelated inherited
+context. The subagent owns prose and editorial judgment.
+
+Use a new fresh writer/editor subagent for each revision. Provide only the current authoritative draft, accepted
+decisions, relevant sources, and applicable invariants. Do not use same-context or sequential fallback for prose or
+editorial work.
 
 When `avoid-ai-writing` is available, send only the current edited draft to a sibling reviewer. Ask it to critique, not
 rewrite, and return location, pattern, severity, `safe-fix` or `author-judgment`, rationale, and suggested direction.
-Deduplicate findings and reject only objective conflicts with the shared invariants. Send substantive findings to a
-fresh editor for reconciliation. Skip this specialist pass for tiny artifacts. If unavailable, continue and report the
-omission briefly.
+Deduplicate findings and reject only objective conflicts with the shared invariants. Send substantive findings to a new
+editor for reconciliation. Skip this optional specialist pass when unnecessary. Its absence never blocks the core
+workflow.
 
-Prefer sibling agents; nested delegation is optional. Without subagents, run writer, specialist review, and
-reconciliation as explicit sequential phases and acknowledge weaker context isolation.
+If isolated delegation is unavailable or disabled, stop before composing, editing, or reviewing. Return a concise
+capability error naming isolated writer/editor delegation as missing and telling the user how to enable subagents. For
+Pi, state that the official subagent extension must be installed and enabled. Do not substitute main-thread editorial
+work.
 
-Return a machine-oriented result containing revised content, source-preservation status, safe changes, material
-suggestions or questions, unresolved gaps, checks, and pending specialist-review status. The main thread renders the
-user-facing result.
+The writer/editor returns a machine-oriented result containing revised content, source-preservation status, safe
+changes, material suggestions or questions, unresolved gaps, checks, and pending specialist-review status. The main
+thread adopts the result as appropriate and renders it for the user.

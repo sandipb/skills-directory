@@ -1,8 +1,9 @@
 # Testing agent skills
 
 Repository validation checks skill structure, package synchronization, manifests, scripts, Markdown, and deterministic
-smoke-runner behavior. It does not execute skills through a model. Use the opt-in smoke harness to test invocation and
-observable writing behavior.
+smoke-runner behavior. Deterministic writing-smoke tests run through `task test`, `task validate`, and CI. They do not
+execute skills through a model. Use the opt-in model-backed smoke harness to test invocation and observable writing
+behavior.
 
 Manual results are evidence, not stable CI gates. Model, host, installed instructions, and runtime changes can affect
 them.
@@ -23,6 +24,8 @@ Run deterministic harness tests locally:
 ```bash
 task test:writing-smoke
 ```
+
+These deterministic tests also run through `task test`, `task validate`, and CI.
 
 Run all writing fixtures serially:
 
@@ -71,12 +74,14 @@ Docker documents the current platform requirements and authentication commands i
 
 ## Fixture contract
 
-Version 1 fixtures are JSON files under `tests/fixtures/writing-smoke/`. Each fixture contains:
+Version 2 fixtures are JSON files under `tests/fixtures/writing-smoke/`. Each fixture contains:
 
-- `schema_version`: `1`;
+- `schema_version`: `2`;
 - `id`: a unique lowercase kebab-case identifier;
 - `prompt`: complete fictional input passed to Codex unchanged;
 - `expected_skills`: informational routing metadata;
+- `requires_isolated_editor`: required in every fixture; must be `true` when `expected_skills` includes
+  `technical-docs` or `tech-blog`;
 - `assertions.contains`: required exact literals;
 - `assertions.forbids`: prohibited exact literals;
 - `assertions.sections`: required Markdown heading or standalone section labels;
@@ -86,17 +91,40 @@ At least one deterministic assertion is required. Unknown fields and malformed f
 a sandbox or makes a model request. Do not add private operational data, customer data, unpublished measurements, or
 exact full-response snapshots.
 
+To migrate a version 1 fixture, set `schema_version` to `2`, add `requires_isolated_editor: true` for `technical-docs`
+and `tech-blog` fixtures or `false` otherwise, and ensure each required-editor fixture has at least one source literal
+in `assertions.contains`.
+
 ## Results and cleanup
 
-The runner reports expected skills as `unverified`. Codex's JSON stream does not currently provide trustworthy
-skill-loading evidence. Model self-reporting is not proof of routing.
+Each result records `routing: "unverified"` because `expected_skills` is informational routing metadata; the harness
+does not observe skill loading. The separate `isolated_editor` field uses ordinary observable spawn-prompt evidence: an
+editorial action term plus at least one source literal already present in the fixture's `assertions.contains` list. The
+harness correlates the matching spawn's receiver child ID with that child's observed state; skills do not inject test
+sentinels.
+
+The adapter excludes prompts containing explicit specialist context—`avoid-ai-writing`, `AI-writing` or AI-pattern
+references, or `critique, not rewrite`—so a completed specialist review cannot satisfy mandatory editor evidence.
+
+- `verified`: a matching editor spawn is correlated with an observed `completed` state for its receiver child;
+- `failed`: the spawn prompt, receiver child ID, and child state are sufficiently visible, but no spawn matches the
+  editor evidence or a matched child has an observed state other than `completed`;
+- `inconclusive`: a required spawn prompt, receiver child ID, or child state is missing; this produces an environment or
+  harness failure, not success;
+- `not-required`: the fixture does not require an isolated editor.
+
+Model self-report is rejected as routing or delegation evidence. Final-prose assertions are evaluated separately and
+cannot establish or override `isolated_editor`.
+
+`assertion_failures` contains only final-prose failures; the separate `delegation_failure` field records a required
+isolated-editor behavior failure.
 
 Exit statuses are:
 
 | Status | Meaning |
 | --- | --- |
-| `0` | Every deterministic fixture assertion passed. |
-| `1` | At least one fixture assertion failed. |
+| `0` | Every final-prose assertion passed and every required isolated editor was verified. |
+| `1` | A final-prose assertion or required-isolation behavior failed. |
 | `2` | An environment or harness failure occurred. |
 | `130` | The run was interrupted. |
 
@@ -109,8 +137,8 @@ The cleanup code accepts only the unique `writing-smoke-` sandbox name created b
 
 ## Troubleshoot Docker Sandboxes
 
-Keep the JSON event stream as the test trace. Verify the final output and observable completion events. Record expected
-skills as unverified metadata; do not treat model prose as routing evidence.
+Keep the JSON event stream as the test trace. Verify the final output and observable completion events. Do not treat
+model prose as routing evidence.
 
 Classify setup failures as environmental failures. Useful checks include:
 
@@ -136,7 +164,7 @@ Run both forms:
 - Implicit: describe the artifact and task without naming a skill.
 
 Expected-skill metadata records routing intent only. Do not ask the model to list loaded skills or infer routing from
-its prose. Treat routing as inconclusive until Codex emits trustworthy skill-loading events.
+its prose.
 
 At minimum, verify these routes:
 
@@ -160,7 +188,7 @@ Fixtures use small fictional inputs with independently checkable literals. They 
 - formulaic prose reduction without synonym-cycling technical terms;
 - omission of empty findings or suggestions sections.
 
-Delegation, bounded source packets, reviewer input boundaries, fresh editorial contexts, and subjective prose quality
-remain manual or inconclusive until their events are externally observable. Model-backed results remain variable.
-Both `task test:writing-smoke` and `task smoke:writing` are opt-in local checks and do not run through `task test`,
-`task validate`, or required CI.
+Deterministic writing-smoke tests cover fixture validation, event parsing, isolated-editor correlation, result metadata,
+and cleanup. They run through `task test`, `task validate`, and required CI. Only the model-backed `task smoke:writing`
+remains an opt-in local check. Bounded source-packet transfer, absence of inherited context, reviewer input boundaries,
+and subjective prose quality remain manual checks; model-backed results remain variable.

@@ -13,10 +13,11 @@ from scripts import writing_smoke
 class FixtureTests(unittest.TestCase):
     def fixture(self, **overrides):
         fixture = {
-            "schema_version": 1,
+            "schema_version": 2,
             "id": "docs-preservation",
             "prompt": "Edit this fictional runbook.",
             "expected_skills": ["technical-docs", "technical-writing"],
+            "requires_isolated_editor": True,
             "assertions": {
                 "contains": ["widgetctl start"],
                 "forbids": ["real customer"],
@@ -41,6 +42,30 @@ class FixtureTests(unittest.TestCase):
             with self.assertRaisesRegex(writing_smoke.HarnessError, "prompt"):
                 writing_smoke.load_fixtures(Path(directory))
 
+    def test_version_one_fixture_requires_migration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "fixture.json")
+            path.write_text(json.dumps(self.fixture(schema_version=1)), encoding="utf-8")
+            with self.assertRaisesRegex(writing_smoke.HarnessError, "schema_version must be 2"):
+                writing_smoke.load_fixtures(Path(directory))
+
+    def test_fixture_must_declare_isolated_editor_requirement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "fixture.json")
+            data = self.fixture()
+            del data["requires_isolated_editor"]
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(writing_smoke.HarnessError, "requires_isolated_editor"):
+                writing_smoke.load_fixtures(Path(directory))
+
+    def test_isolated_editor_fixture_requires_source_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "fixture.json")
+            data = self.fixture(assertions={"contains": [], "forbids": [], "sections": ["Findings"]})
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(writing_smoke.HarnessError, "assertions.contains evidence"):
+                writing_smoke.load_fixtures(Path(directory))
+
     def test_duplicate_fixture_ids_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             for name in ("one.json", "two.json"):
@@ -61,6 +86,21 @@ class FixtureTests(unittest.TestCase):
                 "multiple-missing-facts",
             }.issubset(identifiers)
         )
+
+    def test_umbrella_fixtures_require_an_isolated_editor(self):
+        fixtures = writing_smoke.load_fixtures(Path("tests/fixtures/writing-smoke"))
+        for fixture in fixtures:
+            with self.subTest(fixture=fixture.identifier):
+                expected = bool({"technical-docs", "tech-blog"} & set(fixture.expected_skills))
+                self.assertEqual(expected, fixture.requires_isolated_editor)
+
+    def test_each_umbrella_skill_has_explicit_and_implicit_fixtures(self):
+        fixtures = writing_smoke.load_fixtures(Path("tests/fixtures/writing-smoke"))
+        for skill in ("technical-docs", "tech-blog"):
+            matching = [fixture for fixture in fixtures if skill in fixture.expected_skills]
+            with self.subTest(skill=skill):
+                self.assertTrue(any(f"${skill}" in fixture.prompt for fixture in matching))
+                self.assertTrue(any(f"${skill}" not in fixture.prompt for fixture in matching))
 
 
 class ReadmeContractTests(unittest.TestCase):
@@ -88,9 +128,23 @@ class ReadmeContractTests(unittest.TestCase):
                 self.assertRegex(text, r"does not research|writes only from")
         for skill in ("technical-docs", "tech-blog"):
             text = self.readme(skill)
-            self.assertIn("subagent", text)
-            self.assertIn("weaker context isolation", text)
+            self.assertRegex(text, r"fresh (?:writer/)?editor subagent")
+            self.assertIn("must", text.lower())
+            self.assertIn("stop", text.lower())
+            self.assertNotIn("sequentially with weaker context isolation", text)
             self.assertIn("avoid-ai-writing", text)
+
+    def test_umbrella_skills_require_delegation_and_reject_same_context_fallback(self):
+        for skill in ("technical-docs", "tech-blog"):
+            with self.subTest(skill=skill):
+                text = Path(f"skills/{skill}/SKILL.md").read_text(encoding="utf-8")
+                self.assertRegex(text, r"(?i)must delegate every compose, edit, or review")
+                self.assertRegex(text, r"(?i)fresh writer/editor subagent")
+                self.assertRegex(text, r"(?i)stop before (?:composing|editing|reviewing)")
+                self.assertIn("Do not use same-context or sequential fallback", text)
+                self.assertNotIn("Without subagents", text)
+                self.assertIn("If isolated delegation is unavailable or disabled", text)
+                self.assertIn("official subagent extension must be installed and enabled", text)
 
 
 class StreamTests(unittest.TestCase):
@@ -110,6 +164,199 @@ class StreamTests(unittest.TestCase):
         self.assertEqual("Result", parsed.final_response)
         self.assertEqual({"input_tokens": 3, "output_tokens": 2}, parsed.usage)
         self.assertTrue(parsed.completed)
+
+    def test_completed_child_agent_is_observed_and_correlated(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "status": "completed",
+                    "prompt": "Act as the fresh editor. Revise the supplied ValeStore draft.",
+                    "receiverThreadIds": ["child-1"],
+                    "agentsStates": {"child-1": {"status": "running"}},
+                },
+            },
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "wait",
+                    "status": "completed",
+                    "receiverThreadIds": ["child-1"],
+                    "agentsStates": {"child-1": {"status": "completed"}},
+                },
+            },
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.VERIFIED, observation.status)
+        self.assertEqual(("child-1",), observation.started_children)
+        self.assertEqual(("child-1",), observation.completed_children)
+
+    def test_snake_case_child_agent_events_are_supported(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collab_agent_tool_call",
+                    "tool": "spawn_agent",
+                    "status": "completed",
+                    "prompt": "Edit the ValeStore documentation.",
+                    "receiver_thread_ids": ["child-2"],
+                    "agents_states": {"child-2": {"status": "completed"}},
+                },
+            }
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.VERIFIED, observation.status)
+
+    def test_model_self_report_is_not_delegation_evidence(self):
+        events = [
+            {"type": "item.completed", "item": {"type": "agent_message", "text": "I used a fresh subagent."}},
+            {"type": "turn.completed", "usage": {}},
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.INCONCLUSIVE, observation.status)
+
+    def test_visible_collaboration_without_completed_child_fails(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "status": "completed",
+                    "prompt": "Edit the ValeStore draft.",
+                    "receiverThreadIds": ["child-3"],
+                    "agentsStates": {"child-3": {"status": "running"}},
+                },
+            }
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.FAILED, observation.status)
+
+    def test_completed_unrelated_child_is_not_editor_evidence(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "status": "completed",
+                    "prompt": "Inspect ValeStore code for test coverage.",
+                    "receiverThreadIds": ["child-4"],
+                    "agentsStates": {"child-4": {"status": "completed"}},
+                },
+            }
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.FAILED, observation.status)
+
+    def test_review_editor_prompt_may_use_critique(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "prompt": "Critique and review the MistQueue draft for pacing.",
+                    "receiverThreadIds": ["child-review"],
+                    "agentsStates": {"child-review": {"status": "completed"}},
+                },
+            }
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("MistQueue",))
+        self.assertEqual(writing_smoke.DelegationStatus.VERIFIED, observation.status)
+
+    def test_ai_pattern_reviewer_is_not_editor_evidence(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "prompt": "Review the MistQueue draft for pacing and AI-writing patterns; return safe-fix findings.",
+                    "receiverThreadIds": ["child-specialist"],
+                    "agentsStates": {"child-specialist": {"status": "completed"}},
+                },
+            }
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("MistQueue",))
+        self.assertEqual(writing_smoke.DelegationStatus.FAILED, observation.status)
+
+    def test_editor_prompt_may_preserve_contract_labels(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "prompt": (
+                        "Edit the ValeStore draft; apply safe-fix items and return additions as author-judgment "
+                        "suggestions."
+                    ),
+                    "receiverThreadIds": ["child-contract"],
+                    "agentsStates": {"child-contract": {"status": "completed"}},
+                },
+            }
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.VERIFIED, observation.status)
+
+    def test_spawn_role_and_child_can_arrive_in_separate_events(self):
+        events = [
+            {
+                "type": "item.started",
+                "item": {
+                    "id": "call-1",
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "prompt": "Edit the ValeStore draft.",
+                },
+            },
+            {
+                "type": "item.completed",
+                "item": {
+                    "id": "call-1",
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "receiverThreadIds": ["child-5"],
+                    "agentsStates": {"child-5": {"status": "completed"}},
+                },
+            },
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.VERIFIED, observation.status)
+
+    def test_missing_spawn_prompt_is_inconclusive(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "receiverThreadIds": ["child-6"],
+                    "agentsStates": {"child-6": {"status": "completed"}},
+                },
+            }
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.INCONCLUSIVE, observation.status)
+
+    def test_missing_spawn_child_id_is_inconclusive(self):
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "prompt": "Edit the ValeStore draft.",
+                },
+            }
+        ]
+        observation = writing_smoke.observe_isolated_editor(events, ("ValeStore",))
+        self.assertEqual(writing_smoke.DelegationStatus.INCONCLUSIVE, observation.status)
 
     def test_failed_turn_is_not_completed(self):
         event = json.dumps({"type": "turn.failed", "error": {"message": "401 Unauthorized"}})
@@ -154,6 +401,50 @@ class ClassificationTests(unittest.TestCase):
         self.assertEqual(1, writing_smoke.exit_status(writing_smoke.ResultKind.FIXTURE_FAILURE))
         self.assertEqual(2, writing_smoke.exit_status(writing_smoke.ResultKind.HARNESS_FAILURE))
 
+    def test_required_delegation_changes_result_classification(self):
+        completed = writing_smoke.ParsedRun([], "text", {}, True, None)
+        verified = writing_smoke.DelegationObservation(
+            writing_smoke.DelegationStatus.VERIFIED, ("child-1",), ("child-1",)
+        )
+        failed = writing_smoke.DelegationObservation(writing_smoke.DelegationStatus.FAILED, (), ())
+        inconclusive = writing_smoke.DelegationObservation(writing_smoke.DelegationStatus.INCONCLUSIVE, (), ())
+        self.assertEqual(
+            writing_smoke.ResultKind.SUCCESS,
+            writing_smoke.classify_result(completed, [], verified),
+        )
+        self.assertEqual(
+            writing_smoke.ResultKind.FIXTURE_FAILURE,
+            writing_smoke.classify_result(completed, [], failed),
+        )
+        self.assertEqual(
+            writing_smoke.ResultKind.HARNESS_FAILURE,
+            writing_smoke.classify_result(completed, [], inconclusive),
+        )
+
+    def test_result_keeps_skill_routing_separate_from_editor_evidence(self):
+        fixture = writing_smoke.validate_fixture(FixtureTests().fixture(), Path("fixture.json"))
+        parsed = writing_smoke.ParsedRun([], "Result", {}, True, None)
+        delegation = writing_smoke.DelegationObservation(
+            writing_smoke.DelegationStatus.VERIFIED, ("child-1",), ("child-1",)
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "result.json")
+            writing_smoke.write_result(
+                path,
+                fixture,
+                parsed,
+                [],
+                writing_smoke.ResultKind.SUCCESS,
+                None,
+                delegation,
+                "isolated editor did not complete",
+            )
+            result = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual("unverified", result["routing"])
+        self.assertEqual("verified", result["isolated_editor"])
+        self.assertEqual([], result["assertion_failures"])
+        self.assertEqual("isolated editor did not complete", result["delegation_failure"])
+
 
 class CleanupTests(unittest.TestCase):
     def test_success_is_removed_unless_keep_requested(self):
@@ -190,6 +481,17 @@ class OrchestrationTests(unittest.TestCase):
 
     def completed_stream(self) -> bytes:
         events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "collabAgentToolCall",
+                    "tool": "spawnAgent",
+                    "status": "completed",
+                    "prompt": "Edit the Result draft.",
+                    "receiverThreadIds": ["child-1"],
+                    "agentsStates": {"child-1": {"status": "completed"}},
+                },
+            },
             {"type": "item.completed", "item": {"type": "agent_message", "text": "Result"}},
             {"type": "turn.completed", "usage": {"output_tokens": 1}},
         ]
@@ -198,13 +500,14 @@ class OrchestrationTests(unittest.TestCase):
     def test_successful_main_removes_owned_state(self):
         with tempfile.TemporaryDirectory() as fixtures_directory:
             self.write_fixture(Path(fixtures_directory))
-            with mock.patch.object(writing_smoke, "run_with_pty", return_value=(0, self.completed_stream())):
-                with mock.patch.object(
-                    writing_smoke.OwnedSandbox,
-                    "remove",
-                    return_value=subprocess.CompletedProcess([], 0),
-                ) as remove:
-                    status = writing_smoke.main(["--fixtures-dir", fixtures_directory])
+            with mock.patch.object(writing_smoke.shutil, "which", return_value="/usr/local/bin/sbx"):
+                with mock.patch.object(writing_smoke, "run_with_pty", return_value=(0, self.completed_stream())):
+                    with mock.patch.object(
+                        writing_smoke.OwnedSandbox,
+                        "remove",
+                        return_value=subprocess.CompletedProcess([], 0),
+                    ) as remove:
+                        status = writing_smoke.main(["--fixtures-dir", fixtures_directory])
         self.assertEqual(0, status)
         remove.assert_called_once_with()
 
@@ -212,9 +515,10 @@ class OrchestrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as fixtures_directory, tempfile.TemporaryDirectory() as run_directory:
             self.write_fixture(Path(fixtures_directory))
             with mock.patch.object(writing_smoke.tempfile, "mkdtemp", return_value=run_directory):
-                with mock.patch.object(writing_smoke, "run_with_pty", return_value=(7, self.completed_stream())):
-                    with mock.patch.object(writing_smoke.OwnedSandbox, "remove") as remove:
-                        status = writing_smoke.main(["--fixtures-dir", fixtures_directory])
+                with mock.patch.object(writing_smoke.shutil, "which", return_value="/usr/local/bin/sbx"):
+                    with mock.patch.object(writing_smoke, "run_with_pty", return_value=(7, self.completed_stream())):
+                        with mock.patch.object(writing_smoke.OwnedSandbox, "remove") as remove:
+                            status = writing_smoke.main(["--fixtures-dir", fixtures_directory])
             self.assertTrue(Path(run_directory, "docs-preservation.jsonl").exists())
         self.assertEqual(2, status)
         remove.assert_not_called()
